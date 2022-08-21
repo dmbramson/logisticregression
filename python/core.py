@@ -44,15 +44,15 @@ def calc_logloss_grad(
         bup = np.sum(logloss(y, logistic(X, b + (h * zero))))
         bdown = np.sum(logloss(y, logistic(X, b - (h * zero))))
         ds[i] = (bup - bdown) / (2 * np.sum(h * zero))
-    return ds
+    return ds / X.shape[0]
 
 
 def grad_descent(
     X: npt.NDArray[np.number],
     y: npt.NDArray[np.number],
-    b: npt.NDArray,
+    b: npt.NDArray[np.number],
     eps: np.number = EPS,
-    threshold: float = 1e-2,
+    threshold: float = 1e-4,
     alpha: float = ALPHA,
     max_iter: int = 10000,
 ) -> npt.NDArray[np.number]:
@@ -73,9 +73,9 @@ def grad_descent(
 def adagrad(
     X: npt.NDArray[np.number],
     y: npt.NDArray[np.number],
-    b: npt.NDArray,
+    b: npt.NDArray[np.number],
     eps: np.number = EPS,
-    threshold: float = 1e-2,
+    threshold: float = 1e-4,
     alpha: float = ALPHA,
     max_iter: int = 10000,
 ) -> npt.NDArray[np.number]:
@@ -83,13 +83,51 @@ def adagrad(
     i = 1
     grad = calc_logloss_grad(X, y, b, eps)
     while np.linalg.norm(grad) > threshold:
-        step = grad * alpha/(np.linalg.norm(grad)+1e-8)
+        step = grad * alpha / (np.linalg.norm(grad) + 1e-8)
         b = b - step
         print("Iteration {}: b = {}, grad.norm = {}".format(i, b, np.linalg.norm(grad)))
         grad = calc_logloss_grad(X, y, b, eps)
         i = i + 1
         if i > max_iter:
             break
+    return b
+
+
+def stochgrad(
+    X: npt.NDArray[np.number],
+    y: npt.NDArray[np.number],
+    b: npt.NDArray[np.number],
+    eps: np.number = EPS,
+    threshold: float = 1e-4,
+    alpha: float = ALPHA,
+    max_iter: int = 10000,
+    seed=4181516,
+) -> npt.NDArray[np.number]:
+    """Optimize logistic regression parameters using stochastic gradient descent."""
+    flag = True
+    rng = np.random.default_rng(seed)
+    i = 1
+    while flag:
+        p = rng.permutation(X.shape[0])
+        for j in p:
+            xj = (
+                X[j, ]
+                .reshape(-1, 1)
+                .transpose()
+            )
+            yj = y[j, ]
+            grad = calc_logloss_grad(xj, yj, b, eps)
+            step = grad * alpha / (np.linalg.norm(grad) + 1e-8)
+            b = b - step
+        print(
+            "Epoch {} Complete: b = {}, grad.norm = {}, loss = {}".format(
+                i, b, np.linalg.norm(grad), np.mean(logloss(y, logistic(X, b)))
+            )
+        )
+        i = i + 1
+        if i > max_iter:
+            break
+        flag = np.mean(logloss(y, logistic(X, b))) > threshold
     return b
 
 
@@ -104,8 +142,8 @@ test_data = test_data[cols]
 test_data.loc[:, "class"] = test_data["class"].apply(
     lambda x: 1 if x == "Iris-setosa" else 0
 )
-X = test_data.drop("class", axis=1)
-y = test_data["class"]
+X = np.array(test_data.drop("class", axis=1))
+y = np.array(test_data["class"])
 
 b = np.array([1, 1, 1])
 yhat = logistic(X, b)
@@ -121,8 +159,15 @@ ypred = np.round(yhat, 0)
 # Obviously also has 100% accuracy
 b3 = adagrad(X, y, b)
 yhat = logistic(X, b3)
-z = logloss(y, yhat)  # 0.0314
+z = logloss(y, yhat) 
+np.mean(z)
 ypred = np.round(yhat, 0)
-sum(y-ypred)
+sum(y - ypred)
 
-
+# Trains in 187 epochs
+b4 = stochgrad(X, y, b)
+yhat = logistic(X, b4)
+z = logloss(y, yhat)  
+np.mean(z) #9.955939143533206e-05
+ypred = np.round(yhat, 0)
+sum(y - ypred)
