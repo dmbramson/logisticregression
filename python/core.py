@@ -109,6 +109,7 @@ def stochgrad(
     i = 1
     while flag:
         p = rng.permutation(X.shape[0])
+        avg_grad = 0
         for j in p:
             xj = (
                 X[j, ]
@@ -117,17 +118,19 @@ def stochgrad(
             )
             yj = y[j, ]
             grad = calc_logloss_grad(xj, yj, b, eps)
+            avg_grad += grad
             step = grad * alpha / (np.linalg.norm(grad) + 1e-8)
             b = b - step
+        avg_grad = avg_grad/X.shape[0]
         print(
             "Epoch {} Complete: b = {}, grad.norm = {}, loss = {}".format(
-                i, b, np.linalg.norm(grad), np.mean(logloss(y, logistic(X, b)))
+                i, b, np.linalg.norm(avg_grad), np.mean(logloss(y, logistic(X, b)))
             )
         )
         i = i + 1
         if i > max_iter:
             break
-        flag = np.mean(logloss(y, logistic(X, b))) > threshold
+        flag = np.linalg.norm(avg_grad) > threshold
     return b
 
 
@@ -153,9 +156,10 @@ z = logloss(y, yhat)
 # Still finds good coefficients that actually result in 100% accuracy
 b2 = grad_descent(X, y, b)
 yhat = logistic(X, b2)
-z = logloss(y, yhat)  # 0.083
+z = logloss(y, yhat)  # 0.047
 ypred = np.round(yhat, 0)
-# Converges in 2152 iterations
+
+# Converges in 2031 iterations
 # Obviously also has 100% accuracy
 b3 = adagrad(X, y, b)
 yhat = logistic(X, b3)
@@ -164,10 +168,10 @@ np.mean(z)
 ypred = np.round(yhat, 0)
 sum(y - ypred)
 
-# Trains in 187 epochs
+# Trains in 116 epochs
 b4 = stochgrad(X, y, b)
 yhat = logistic(X, b4)
 z = logloss(y, yhat)  
-np.mean(z) #9.955939143533206e-05
+np.mean(z) #0.00013692593926680865
 ypred = np.round(yhat, 0)
 sum(y - ypred)
