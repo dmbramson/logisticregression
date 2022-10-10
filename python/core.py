@@ -36,7 +36,7 @@ def calc_logloss_grad(
     eps: np.number = EPS,
 ) -> npt.NDArray[np.number]:
     """Calculate the gradient of the logloss function."""
-    h = np.array([h0 if h0 > 0 else np.sqrt(eps) / 10 for h0 in b * np.sqrt(eps)])
+    h = np.array([h0 if h0 > 0 else np.sqrt(eps) / 10 for h0 in abs(b) * np.sqrt(eps)])
     ds = np.zeros(h.shape)
     for i in range(0, h.shape[0]):
         zero = np.zeros(h.shape)
